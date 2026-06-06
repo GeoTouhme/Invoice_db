@@ -1,0 +1,15 @@
+body { font-family: 'Segoe UI', Tahoma, sans-serif; }
+
+.table td, .table th { vertical-align: middle; }
+code { color: #6f42c1; font-size: 0.85em; }
+.btn-xs { font-size: 0.75rem; }
+
+/* Department badge colors */
+.badge { font-size: 0.8em; padding: 4px 8px; }
+.dept-beer        { background-color: #f59e0b; color: #000; }
+.dept-wine        { background-color: #7c3aed; color: #fff; }
+.dept-spirits     { background-color: #1d4ed8; color: #fff; }
+.dept-non-alcohol { background-color: #16a34a; color: #fff; }
+.dept-misc        { background-color: #6b7280; color: #fff; }
+/* fallback for any other department */
+.badge:not([class*="dept-"]) { background-color: #374151; color: #fff; }
