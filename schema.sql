@@ -1,7 +1,7 @@
 -- Balport Invoices Database Schema
 
 CREATE TABLE IF NOT EXISTS invoices (
-    invoice_number      BIGINT PRIMARY KEY,
+    invoice_number      TEXT PRIMARY KEY,
     invoice_date        DATE,
     invoice_due_date    DATE,
     process_date        DATE,
@@ -9,13 +9,13 @@ CREATE TABLE IF NOT EXISTS invoices (
     item_count          INTEGER,
     vendor_name         TEXT,
     retailer_name       TEXT,
-    customer_id         INTEGER,
+    customer_id         TEXT,
     store_id            TEXT
 );
 
 CREATE TABLE IF NOT EXISTS invoice_items (
     id                  SERIAL PRIMARY KEY,
-    invoice_number      BIGINT REFERENCES invoices(invoice_number),
+    invoice_number      TEXT REFERENCES invoices(invoice_number),
     product_number      TEXT,
     upc_number          TEXT,
     pack_upc            TEXT,
