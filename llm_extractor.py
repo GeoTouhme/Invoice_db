@@ -193,7 +193,7 @@ def _ollama_extract(raw_text: str) -> dict[str, Any] | None:
         headers["Authorization"] = f"Bearer {ollama_key}"
 
     try:
-        resp = requests.post(generate_url, json=payload, headers=headers, timeout=120)
+        resp = requests.post(generate_url, json=payload, headers=headers, timeout=180)
         resp.raise_for_status()
         data = resp.json()
     except Exception:

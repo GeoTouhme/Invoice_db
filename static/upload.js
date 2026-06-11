@@ -37,6 +37,7 @@ function initUploadForm(opts) {
   ['dragleave', 'drop'].forEach((evt) =>
     zone.addEventListener(evt, (e) => {
       e.preventDefault();
+      if (evt === 'dragleave' && zone.contains(e.relatedTarget)) return;
       zone.classList.remove('dragover');
     })
   );
@@ -48,7 +49,9 @@ function initUploadForm(opts) {
       nameEl.classList.remove('d-none');
       return;
     }
-    input.files = files;
+    const dt = new DataTransfer();
+    dt.items.add(files[0]);
+    input.files = dt.files;
     showFile();
   });
 
