@@ -7,7 +7,8 @@ A Flask + PostgreSQL web app for tracking liquor-store vendor invoices:
 - **CSV import** — idempotent bulk import (re-uploading an invoice updates it, no duplicates)
 - **PDF import with AI extraction** — upload a vendor PDF, the text is parsed by an LLM
   (Anthropic Claude or a local Ollama model) into a review form you can correct before saving
-- **Stats API** (`/api/stats`) — totals by department, vendor, month, and top products
+- **Dashboard** (`/stats`) — monthly spend trend, spend by department, top vendors and products
+- **Stats API** (`/api/stats`) — the same numbers as JSON
 
 ## Requirements
 

@@ -1,46 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Balport — Review PDF Extraction</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <style>
-    .raw-text-box { max-height: 200px; overflow: auto; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: .375rem; padding: .75rem; font-size: .8rem; white-space: pre-wrap; }
-    .line-item-row input { font-size: .85rem; }
-  </style>
-</head>
-<body class="bg-light">
+{% extends "base.html" %}
+{% block title %}Balport — Review PDF Extraction{% endblock %}
 
-<nav class="navbar navbar-dark bg-dark px-4 mb-4">
-  <a class="navbar-brand fw-bold fs-5" href="/">🏪 Balport — Product Search</a>
-  <div class="d-flex gap-2">
-    <a href="/upload-pdf" class="btn btn-outline-light btn-sm">📄 Upload PDF</a>
-    <a href="/api/stats" class="btn btn-outline-light btn-sm" target="_blank">JSON Stats</a>
-    {% if auth_enabled %}
-    <form method="post" action="/logout" class="d-inline m-0">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-outline-warning btn-sm">Logout</button>
-    </form>
-    {% endif %}
-  </div>
-</nav>
+{% block head %}
+<style>
+  .raw-text-box { max-height: 200px; overflow: auto; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: .375rem; padding: .75rem; font-size: .8rem; white-space: pre-wrap; }
+  .line-item-row input { font-size: .85rem; }
+</style>
+{% endblock %}
 
-<div class="container-fluid px-4">
+{% block content %}
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-      <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show" role="alert">
-        {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-      </div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-
-  <form method="post" action="/review-pdf">
+  <form method="post" action="{{ url_for('review_pdf') }}" id="reviewForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <textarea name="raw_text" hidden>{{ raw_text }}</textarea>
 
@@ -80,7 +50,7 @@
           </div>
           <div class="col-md-2">
             <label class="form-label fw-semibold">Invoice Total</label>
-            <input type="number" step="0.01" name="inv_invoice_total" class="form-control" value="{{ data.invoice_total or '' }}">
+            <input type="number" step="0.01" name="inv_invoice_total" id="invTotal" class="form-control" value="{{ data.invoice_total or '' }}">
           </div>
           <div class="col-md-2">
             <label class="form-label fw-semibold">Item Count</label>
@@ -148,24 +118,30 @@
                 <td><input type="number" step="0.01" name="total_discount[]" class="form-control" value="{{ item.total_discount or '0' }}"></td>
                 <td><input type="number" step="0.01" name="extended_price[]" class="form-control" value="{{ item.extended_price or '' }}"></td>
                 <td><input type="number" step="0.01" name="ppc[]" class="form-control" value="{{ item.ppc or '' }}"></td>
-                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">×</button></td>
+                <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); updateTotals()">×</button></td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
+        <div class="d-flex justify-content-end align-items-center gap-3 mt-2">
+          <span class="text-muted small">Sum of extended prices:</span>
+          <strong id="lineSum">$0.00</strong>
+          <span class="badge" id="sumBadge"></span>
+        </div>
       </div>
     </div>
 
     <div class="d-flex gap-2 mb-5">
-      <button type="submit" class="btn btn-success px-4">✅ Import into Database</button>
-      <a href="/upload-pdf" class="btn btn-outline-secondary">Cancel</a>
+      <button type="submit" class="btn btn-success px-4" id="importBtn">✅ Import into Database</button>
+      <a href="{{ url_for('upload_pdf') }}" class="btn btn-outline-secondary">Cancel</a>
     </div>
 
   </form>
 
-</div>
+{% endblock %}
 
+{% block scripts %}
 <script>
 function addRow() {
   const tbody = document.querySelector('#itemsTable tbody');
@@ -184,12 +160,45 @@ function addRow() {
     <td><input type="number" step="0.01" name="total_discount[]" class="form-control" value="0"></td>
     <td><input type="number" step="0.01" name="extended_price[]" class="form-control"></td>
     <td><input type="number" step="0.01" name="ppc[]" class="form-control"></td>
-    <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">×</button></td>
+    <td class="text-center"><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); updateTotals()">×</button></td>
   `;
   tbody.appendChild(row);
+  updateTotals();
 }
-</script>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+function updateTotals() {
+  let sum = 0;
+  document.querySelectorAll('input[name="extended_price[]"]').forEach((el) => {
+    const v = parseFloat(el.value);
+    if (!isNaN(v)) sum += v;
+  });
+  document.getElementById('lineSum').textContent = fmt.format(sum);
+
+  const badge = document.getElementById('sumBadge');
+  const totalRaw = document.getElementById('invTotal').value;
+  const total = parseFloat(totalRaw);
+  if (totalRaw === '' || isNaN(total)) {
+    badge.className = 'badge text-bg-secondary';
+    badge.textContent = 'no invoice total to compare';
+  } else if (Math.abs(sum - total) < 0.01) {
+    badge.className = 'badge text-bg-success';
+    badge.textContent = '✓ matches invoice total';
+  } else {
+    badge.className = 'badge text-bg-warning';
+    badge.textContent = '⚠ off by ' + fmt.format(Math.abs(sum - total));
+  }
+}
+
+document.getElementById('itemsTable').addEventListener('input', updateTotals);
+document.getElementById('invTotal').addEventListener('input', updateTotals);
+updateTotals();
+
+document.getElementById('reviewForm').addEventListener('submit', () => {
+  const btn = document.getElementById('importBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Importing…';
+});
+</script>
+{% endblock %}

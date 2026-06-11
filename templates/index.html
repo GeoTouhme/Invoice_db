@@ -1,30 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Balport — Product Search</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body class="bg-light">
+{% extends "base.html" %}
+{% block title %}Balport — Product Search{% endblock %}
 
-<nav class="navbar navbar-dark bg-dark px-4 mb-4">
-  <span class="navbar-brand fw-bold fs-5">🏪 Balport — Product Search</span>
-  <div class="d-flex gap-2">
-    <a href="/upload-pdf" class="btn btn-outline-light btn-sm">📄 Upload PDF</a>
-    <a href="/upload" class="btn btn-outline-light btn-sm">📤 Upload CSV</a>
-    <a href="/api/stats" class="btn btn-outline-light btn-sm" target="_blank">JSON Stats</a>
-    {% if auth_enabled %}
-    <form method="post" action="/logout" class="d-inline m-0">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-outline-warning btn-sm">Logout</button>
-    </form>
-    {% endif %}
-  </div>
-</nav>
-
-<div class="container-fluid px-4">
+{% block content %}
 
   <!-- ── Search Form ── -->
   <div class="card shadow-sm mb-4">
@@ -32,22 +9,22 @@
       <form method="get" class="row g-3">
 
         <div class="col-md-3">
-          <label class="form-label fw-semibold">🔍 Product Name</label>
-          <input type="search" name="name" class="form-control"
+          <label class="form-label fw-semibold" for="f-name">🔍 Product Name</label>
+          <input type="search" name="name" id="f-name" class="form-control"
                  placeholder="e.g. CORONA, LITE …"
                  value="{{ filters.name }}">
         </div>
 
         <div class="col-md-2">
-          <label class="form-label fw-semibold">📦 UPC / Barcode</label>
-          <input type="search" name="upc" class="form-control"
+          <label class="form-label fw-semibold" for="f-upc">📦 UPC / Barcode</label>
+          <input type="search" name="upc" id="f-upc" class="form-control"
                  placeholder="034100576363"
                  value="{{ filters.upc }}">
         </div>
 
         <div class="col-md-2">
-          <label class="form-label fw-semibold">🏷️ Department</label>
-          <select name="department" class="form-select">
+          <label class="form-label fw-semibold" for="f-department">🏷️ Department</label>
+          <select name="department" id="f-department" class="form-select">
             <option value="">— All —</option>
             {% for d in departments %}
             <option value="{{ d }}" {% if d == filters.department %}selected{% endif %}>
@@ -58,8 +35,8 @@
         </div>
 
         <div class="col-md-3">
-          <label class="form-label fw-semibold">🏭 Vendor</label>
-          <select name="vendor" class="form-select">
+          <label class="form-label fw-semibold" for="f-vendor">🏭 Vendor</label>
+          <select name="vendor" id="f-vendor" class="form-select">
             <option value="">— All —</option>
             {% for v in vendors %}
             <option value="{{ v }}" {% if v == filters.vendor %}selected{% endif %}>
@@ -69,23 +46,24 @@
           </select>
         </div>
 
-        <div class="col-md-1">
-          <label class="form-label fw-semibold">From</label>
-          <input type="date" name="date_from" class="form-control"
+        <div class="col-md-1 col-6">
+          <label class="form-label fw-semibold" for="f-from">From</label>
+          <input type="date" name="date_from" id="f-from" class="form-control"
                  value="{{ filters.date_from }}">
         </div>
 
-        <div class="col-md-1">
-          <label class="form-label fw-semibold">To</label>
-          <input type="date" name="date_to" class="form-control"
+        <div class="col-md-1 col-6">
+          <label class="form-label fw-semibold" for="f-to">To</label>
+          <input type="date" name="date_to" id="f-to" class="form-control"
                  value="{{ filters.date_to }}">
         </div>
 
-        <div class="col-12 d-flex gap-2">
+        <div class="col-12 d-flex gap-2 align-items-center flex-wrap">
           <button type="submit" class="btn btn-primary px-4">Search</button>
-          <a href="/" class="btn btn-outline-secondary">Clear</a>
-          <span class="ms-auto text-muted small align-self-center">
-            Results: <strong>{{ total }}</strong> rows
+          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Clear</a>
+          <span class="ms-auto text-muted small">
+            <strong>{{ "{:,}".format(total) }}</strong> line item{{ '' if total == 1 else 's' }}
+            &nbsp;·&nbsp; total <strong class="text-success">{{ spend | money }}</strong>
           </span>
         </div>
 
@@ -95,7 +73,7 @@
 
   <!-- ── Results Table ── -->
   <div class="card shadow-sm">
-    <div class="table-responsive">
+    <div class="table-responsive table-sticky">
       <table class="table table-hover table-sm align-middle mb-0">
         <thead class="table-dark">
           <tr>
@@ -116,17 +94,18 @@
             <td class="fw-semibold" style="max-width:220px">{{ p.product_description }}</td>
             <td><code class="small">{{ p.upc_number }}</code></td>
             <td class="text-center">
-              <span class="badge dept-{{ p.department | lower | replace(' ','_') }}">
+              <span class="badge dept-{{ (p.department or 'misc') | lower | replace(' ','_') }}">
                 {{ p.department }}
               </span>
             </td>
             <td class="text-center">{{ p.quantity }} <small class="text-muted">{{ p.unit_of_measure }}</small></td>
-            <td class="text-end">${{ "%.2f"|format(p.unit_cost) }}</td>
-            <td class="text-end fw-bold text-success">${{ "%.2f"|format(p.extended_price) }}</td>
+            <td class="text-end">{{ p.unit_cost | money }}</td>
+            <td class="text-end fw-bold text-success">{{ p.extended_price | money }}</td>
             <td class="small text-muted" style="max-width:180px">{{ p.vendor_name }}</td>
-            <td class="text-center small">{{ p.invoice_date }}</td>
+            <td class="text-center small text-nowrap">{{ p.invoice_date }}</td>
             <td class="text-center">
-              <a href="/invoice/{{ p.invoice_number }}" class="btn btn-outline-secondary btn-xs py-0 px-1 small">
+              <a href="{{ url_for('invoice_detail', invoice_number=p.invoice_number) }}"
+                 class="btn btn-outline-secondary btn-xs py-0 px-1 small">
                 {{ p.invoice_number }}
               </a>
             </td>
@@ -134,7 +113,9 @@
           {% else %}
           <tr>
             <td colspan="9" class="text-center text-muted py-5">
-              No results — try adjusting your filters
+              <div class="fs-1 mb-2">🔎</div>
+              <div class="fw-semibold">No results</div>
+              <div class="small">Try adjusting or <a href="{{ url_for('index') }}">clearing</a> your filters</div>
             </td>
           </tr>
           {% endfor %}
@@ -145,26 +126,32 @@
 
   <!-- ── Pagination ── -->
   {% if total_pages > 1 %}
-  <nav class="mt-3">
-    <ul class="pagination justify-content-center flex-wrap">
-      <li class="page-item {% if page == 1 %}disabled{% endif %}">
-        <a class="page-link" href="?page={{ page-1 }}&name={{ filters.name }}&upc={{ filters.upc }}&department={{ filters.department }}&vendor={{ filters.vendor }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}">
-          Previous
-        </a>
+  <nav class="mt-3" aria-label="Result pages">
+    <ul class="pagination pagination-sm justify-content-center flex-wrap">
+
+      <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('index', page=page-1, **query_args) }}">‹ Prev</a>
       </li>
-      <li class="page-item disabled">
-        <span class="page-link">Page {{ page }} of {{ total_pages }}</span>
+
+      {% set ns = namespace(prev=0) %}
+      {% for p in range(1, total_pages + 1) %}
+        {% if p == 1 or p == total_pages or (p - page) | abs <= 2 %}
+          {% if p - ns.prev > 1 %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+          <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('index', page=p, **query_args) }}">{{ p }}</a>
+          </li>
+          {% set ns.prev = p %}
+        {% endif %}
+      {% endfor %}
+
+      <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for('index', page=page+1, **query_args) }}">Next ›</a>
       </li>
-      <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-        <a class="page-link" href="?page={{ page+1 }}&name={{ filters.name }}&upc={{ filters.upc }}&department={{ filters.department }}&vendor={{ filters.vendor }}&date_from={{ filters.date_from }}&date_to={{ filters.date_to }}">
-          Next
-        </a>
-      </li>
+
     </ul>
   </nav>
   {% endif %}
 
-</div>
-<div class="mb-5"></div>
-</body>
-</html>
+{% endblock %}

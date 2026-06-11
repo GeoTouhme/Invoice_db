@@ -102,6 +102,14 @@ def inject_auth():
     return {"auth_enabled": bool(APP_PASSWORD)}
 
 
+@app.template_filter("money")
+def money(val):
+    """$1,234.50 — tolerates NULLs from partial imports."""
+    if val is None:
+        return "—"
+    return f"${val:,.2f}"
+
+
 # ── Error handlers ────────────────────────────────────────────────────────────
 
 @app.errorhandler(RequestEntityTooLarge)
@@ -193,7 +201,10 @@ def index():
         JOIN invoices i ON i.invoice_number = ii.invoice_number
         WHERE """ + where_sql
 
-    total = query(f"SELECT COUNT(*) AS n {base_sql}", params, one=True)["n"]
+    summary = query(
+        f"SELECT COUNT(*) AS n, COALESCE(SUM(ii.extended_price), 0) AS spend {base_sql}",
+        params, one=True)
+    total, spend = summary["n"], summary["spend"]
 
     products = query(
         f"""SELECT
@@ -223,16 +234,21 @@ def index():
 
     total_pages = max(1, (total + per_page - 1) // per_page)
 
+    filters = dict(upc=upc, name=name, department=department,
+                   vendor=vendor, date_from=date_from, date_to=date_to)
+
     return render_template(
         "index.html",
         products=products,
         page=page,
         total_pages=total_pages,
         total=total,
+        spend=spend,
         departments=departments,
         vendors=vendors,
-        filters=dict(upc=upc, name=name, department=department,
-                     vendor=vendor, date_from=date_from, date_to=date_to),
+        filters=filters,
+        # non-empty filters only, for building clean pagination links
+        query_args={k: v for k, v in filters.items() if v},
     )
 
 
@@ -257,7 +273,13 @@ def invoice_detail(invoice_number):
     return render_template("invoice.html", inv=inv, items=items)
 
 
-# ── Stats API ─────────────────────────────────────────────────────────────────
+# ── Stats ─────────────────────────────────────────────────────────────────────
+
+@app.route("/stats")
+def stats_page():
+    """Dashboard — charts are rendered client-side from /api/stats."""
+    return render_template("stats.html")
+
 
 @app.route("/api/stats")
 def stats():

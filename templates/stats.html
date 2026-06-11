@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Balport — Dashboard{% endblock %}
+
+{% block content %}
+
+  <!-- KPI cards -->
+  <div class="row g-3 mb-4" id="kpiRow">
+    <div class="col-6 col-lg-3">
+      <div class="card shadow-sm text-center h-100">
+        <div class="card-body">
+          <div class="text-muted small">Total Spend</div>
+          <div class="fs-4 fw-bold text-success" id="kpiSpend">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card shadow-sm text-center h-100">
+        <div class="card-body">
+          <div class="text-muted small">Invoices</div>
+          <div class="fs-4 fw-bold" id="kpiInvoices">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card shadow-sm text-center h-100">
+        <div class="card-body">
+          <div class="text-muted small">Vendors</div>
+          <div class="fs-4 fw-bold" id="kpiVendors">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="card shadow-sm text-center h-100">
+        <div class="card-body">
+          <div class="text-muted small">Departments</div>
+          <div class="fs-4 fw-bold" id="kpiDepartments">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-8">
+      <div class="card shadow-sm h-100">
+        <div class="card-header fw-bold">📈 Monthly Spend</div>
+        <div class="card-body"><canvas id="chartMonthly" height="110"></canvas></div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card shadow-sm h-100">
+        <div class="card-header fw-bold">🏷️ Spend by Department</div>
+        <div class="card-body d-flex align-items-center justify-content-center">
+          <canvas id="chartDept" height="220"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header fw-bold">🏭 Top Vendors by Spend</div>
+        <div class="card-body"><canvas id="chartVendors" height="220"></canvas></div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card shadow-sm h-100">
+        <div class="card-header fw-bold">🥇 Top Products by Spend</div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-secondary">
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th class="text-center">Department</th>
+                <th class="text-end">Qty</th>
+                <th class="text-end">Spend</th>
+              </tr>
+            </thead>
+            <tbody id="topProducts">
+              <tr><td colspan="5" class="text-center text-muted py-4">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+const DEPT_COLORS = {
+  'beer': '#f59e0b', 'wine': '#7c3aed', 'spirits': '#1d4ed8',
+  'non-alcohol': '#16a34a', 'misc': '#6b7280',
+};
+const FALLBACK_COLORS = ['#0ea5e9', '#ef4444', '#84cc16', '#e879f9', '#f97316', '#14b8a6'];
+const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const fmt0 = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+function deptColor(name, i) {
+  return DEPT_COLORS[String(name || '').toLowerCase()] || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+}
+
+async function load() {
+  const res = await fetch('{{ url_for("stats") }}');
+  if (!res.ok) {
+    document.getElementById('topProducts').innerHTML =
+      '<tr><td colspan="5" class="text-center text-danger py-4">Failed to load stats</td></tr>';
+    return;
+  }
+  const data = await res.json();
+  const num = (v) => (v === null || v === undefined) ? 0 : Number(v);
+
+  // ── KPIs ──
+  const totalSpend = data.by_department.reduce((s, d) => s + num(d.total_cost), 0);
+  const totalInvoices = data.by_vendor.reduce((s, v) => s + num(v.invoices), 0);
+  document.getElementById('kpiSpend').textContent = fmt0.format(totalSpend);
+  document.getElementById('kpiInvoices').textContent = totalInvoices.toLocaleString();
+  document.getElementById('kpiVendors').textContent = data.by_vendor.length.toLocaleString();
+  document.getElementById('kpiDepartments').textContent = data.by_department.length.toLocaleString();
+
+  // ── Monthly spend line ──
+  const monthly = data.monthly.filter((m) => m.month);
+  new Chart(document.getElementById('chartMonthly'), {
+    type: 'line',
+    data: {
+      labels: monthly.map((m) => m.month),
+      datasets: [{
+        label: 'Spend',
+        data: monthly.map((m) => num(m.total)),
+        borderColor: '#1d4ed8',
+        backgroundColor: 'rgba(29,78,216,.08)',
+        fill: true,
+        tension: 0.25,
+      }],
+    },
+    options: {
+      plugins: { legend: { display: false },
+                 tooltip: { callbacks: { label: (c) => fmt.format(c.parsed.y) } } },
+      scales: { y: { ticks: { callback: (v) => fmt0.format(v) } } },
+    },
+  });
+
+  // ── Department doughnut ──
+  new Chart(document.getElementById('chartDept'), {
+    type: 'doughnut',
+    data: {
+      labels: data.by_department.map((d) => d.department),
+      datasets: [{
+        data: data.by_department.map((d) => num(d.total_cost)),
+        backgroundColor: data.by_department.map((d, i) => deptColor(d.department, i)),
+      }],
+    },
+    options: {
+      plugins: { legend: { position: 'bottom' },
+                 tooltip: { callbacks: { label: (c) => ` ${c.label}: ${fmt.format(c.parsed)}` } } },
+    },
+  });
+
+  // ── Top vendors bar ──
+  const vendors = data.by_vendor.slice(0, 10);
+  new Chart(document.getElementById('chartVendors'), {
+    type: 'bar',
+    data: {
+      labels: vendors.map((v) => v.vendor_name),
+      datasets: [{ data: vendors.map((v) => num(v.total)), backgroundColor: '#f59e0b' }],
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false },
+                 tooltip: { callbacks: { label: (c) => fmt.format(c.parsed.x) } } },
+      scales: { x: { ticks: { callback: (v) => fmt0.format(v) } } },
+    },
+  });
+
+  // ── Top products table ──
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+      (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  document.getElementById('topProducts').innerHTML = data.top_products.map((p, i) => `
+    <tr>
+      <td class="text-muted">${i + 1}</td>
+      <td class="fw-semibold">${esc(p.product_description)}</td>
+      <td class="text-center"><span class="badge dept-${esc(String(p.gl_code || 'misc').toLowerCase().replace(/ /g, '_'))}">${esc(p.gl_code)}</span></td>
+      <td class="text-end">${num(p.total_qty).toLocaleString()}</td>
+      <td class="text-end fw-semibold text-success">${fmt.format(num(p.total_cost))}</td>
+    </tr>`).join('') ||
+    '<tr><td colspan="5" class="text-center text-muted py-4">No data yet — import some invoices</td></tr>';
+}
+
+load();
+</script>
+{% endblock %}

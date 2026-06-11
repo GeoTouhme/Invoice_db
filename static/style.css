@@ -1,8 +1,21 @@
-body { font-family: 'Segoe UI', Tahoma, sans-serif; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, Tahoma, sans-serif;
+}
 
 .table td, .table th { vertical-align: middle; }
 code { color: #6f42c1; font-size: 0.85em; }
 .btn-xs { font-size: 0.75rem; }
+
+.card { border: none; border-radius: .5rem; }
+.card-header { border-radius: .5rem .5rem 0 0 !important; }
+
+/* Sticky header for long result tables */
+.table-sticky { max-height: 70vh; }
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
 
 /* Department badge colors */
 .badge { font-size: 0.8em; padding: 4px 8px; }
@@ -12,4 +25,32 @@ code { color: #6f42c1; font-size: 0.85em; }
 .dept-non-alcohol { background-color: #16a34a; color: #fff; }
 .dept-misc        { background-color: #6b7280; color: #fff; }
 /* fallback for any other department */
-.badge:not([class*="dept-"]) { background-color: #374151; color: #fff; }
+[class*="dept-"]:not(.dept-beer):not(.dept-wine):not(.dept-spirits):not(.dept-non-alcohol):not(.dept-misc) {
+  background-color: #374151;
+  color: #fff;
+}
+
+/* Drag & drop upload zone */
+.dropzone {
+  border: 2px dashed #adb5bd;
+  border-radius: .5rem;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.dropzone:hover,
+.dropzone:focus-visible { border-color: #0d6efd; background: #f0f6ff; outline: none; }
+.dropzone.dragover { border-color: #0d6efd; background: #e7f1ff; }
+.dropzone.has-file { border-color: #198754; background: #f2fbf6; }
+.dropzone.has-file #fileName,
+.dropzone #fileName { color: #198754; }
+
+/* Print: keep only the invoice content */
+@media print {
+  .no-print, .navbar, .pagination, footer { display: none !important; }
+  body { background: #fff !important; }
+  .card { box-shadow: none !important; border: 1px solid #dee2e6 !important; }
+  a { text-decoration: none; color: inherit; }
+}

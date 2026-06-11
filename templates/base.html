@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Balport Invoices{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏪</text></svg>">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="bg-light">
+
+{% block navbar %}
+<nav class="navbar navbar-expand-md navbar-dark bg-dark px-4 mb-4 no-print">
+  <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">🏪 Balport Invoices</a>
+  <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+          aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="mainNav">
+    <ul class="navbar-nav me-auto">
+      <li class="nav-item">
+        <a class="nav-link {{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">🔍 Search</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {{ 'active' if request.endpoint == 'stats_page' }}" href="{{ url_for('stats_page') }}">📊 Dashboard</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {{ 'active' if request.endpoint == 'upload' }}" href="{{ url_for('upload') }}">📤 Upload CSV</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {{ 'active' if request.endpoint in ('upload_pdf', 'review_pdf') }}" href="{{ url_for('upload_pdf') }}">📄 Upload PDF</a>
+      </li>
+    </ul>
+    {% if auth_enabled %}
+    <form method="post" action="{{ url_for('logout') }}" class="d-flex m-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-warning btn-sm">Logout</button>
+    </form>
+    {% endif %}
+  </div>
+</nav>
+{% endblock %}
+
+<main class="container-fluid px-4">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="no-print">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'danger' else 'success' }} alert-dismissible fade show shadow-sm" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+
+</main>
+
+<div class="pb-5"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Success alerts dismiss themselves; errors stay until closed.
+  setTimeout(function () {
+    document.querySelectorAll('.alert-success').forEach(function (el) {
+      bootstrap.Alert.getOrCreateInstance(el).close();
+    });
+  }, 5000);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
