@@ -1,29 +1,33 @@
 {% extends "base.html" %}
-{% block title %}Balport — Login{% endblock %}
+{% block title %}Balport — Sign in{% endblock %}
 {% block navbar %}{% endblock %}
 
 {% block content %}
 
-  <div class="mx-auto" style="max-width: 420px; margin-top: 10vh;">
+  <div class="mx-auto" style="max-width: 400px; margin-top: 12vh;">
+
+    <div class="text-center mb-4">
+      <div class="font-serif fw-semibold" style="font-size: 2rem;">Balport</div>
+      <div class="kpi-label">Invoice Ledger</div>
+    </div>
+
     <div class="card shadow-sm">
-      <div class="card-header bg-dark text-white fw-bold">
-        🏪 Balport — Sign in
-      </div>
-      <div class="card-body">
+      <div class="card-body p-4">
         <form method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
-            <label for="username" class="form-label fw-semibold">Username</label>
+            <label for="username" class="form-label">Username</label>
             <input type="text" name="username" id="username" class="form-control" autocomplete="username" required autofocus>
           </div>
           <div class="mb-3">
-            <label for="password" class="form-label fw-semibold">Password</label>
+            <label for="password" class="form-label">Password</label>
             <input type="password" name="password" id="password" class="form-control" autocomplete="current-password" required>
           </div>
           <button type="submit" class="btn btn-primary w-100">Sign in</button>
         </form>
       </div>
     </div>
+
   </div>
 
 {% endblock %}

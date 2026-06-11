@@ -8,32 +8,32 @@
     <div class="col-6 col-lg-3">
       <div class="card shadow-sm text-center h-100">
         <div class="card-body">
-          <div class="text-muted small">Total Spend</div>
-          <div class="fs-4 fw-bold text-success" id="kpiSpend">—</div>
+          <div class="kpi-label">Total Spend</div>
+          <div class="kpi-value" id="kpiSpend">—</div>
         </div>
       </div>
     </div>
     <div class="col-6 col-lg-3">
       <div class="card shadow-sm text-center h-100">
         <div class="card-body">
-          <div class="text-muted small">Invoices</div>
-          <div class="fs-4 fw-bold" id="kpiInvoices">—</div>
+          <div class="kpi-label">Invoices</div>
+          <div class="kpi-value" id="kpiInvoices">—</div>
         </div>
       </div>
     </div>
     <div class="col-6 col-lg-3">
       <div class="card shadow-sm text-center h-100">
         <div class="card-body">
-          <div class="text-muted small">Vendors</div>
-          <div class="fs-4 fw-bold" id="kpiVendors">—</div>
+          <div class="kpi-label">Vendors</div>
+          <div class="kpi-value" id="kpiVendors">—</div>
         </div>
       </div>
     </div>
     <div class="col-6 col-lg-3">
       <div class="card shadow-sm text-center h-100">
         <div class="card-body">
-          <div class="text-muted small">Departments</div>
-          <div class="fs-4 fw-bold" id="kpiDepartments">—</div>
+          <div class="kpi-label">Departments</div>
+          <div class="kpi-value" id="kpiDepartments">—</div>
         </div>
       </div>
     </div>
@@ -42,13 +42,13 @@
   <div class="row g-3 mb-4">
     <div class="col-lg-8">
       <div class="card shadow-sm h-100">
-        <div class="card-header fw-bold">📈 Monthly Spend</div>
+        <div class="card-header">Monthly spend</div>
         <div class="card-body"><canvas id="chartMonthly" height="110"></canvas></div>
       </div>
     </div>
     <div class="col-lg-4">
       <div class="card shadow-sm h-100">
-        <div class="card-header fw-bold">🏷️ Spend by Department</div>
+        <div class="card-header">Spend by department</div>
         <div class="card-body d-flex align-items-center justify-content-center">
           <canvas id="chartDept" height="220"></canvas>
         </div>
@@ -59,13 +59,13 @@
   <div class="row g-3 mb-4">
     <div class="col-lg-6">
       <div class="card shadow-sm h-100">
-        <div class="card-header fw-bold">🏭 Top Vendors by Spend</div>
+        <div class="card-header">Top vendors by spend</div>
         <div class="card-body"><canvas id="chartVendors" height="220"></canvas></div>
       </div>
     </div>
     <div class="col-lg-6">
       <div class="card shadow-sm h-100">
-        <div class="card-header fw-bold">🥇 Top Products by Spend</div>
+        <div class="card-header">Top products by spend</div>
         <div class="table-responsive">
           <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-secondary">
@@ -92,10 +92,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
 const DEPT_COLORS = {
-  'beer': '#f59e0b', 'wine': '#7c3aed', 'spirits': '#1d4ed8',
-  'non-alcohol': '#16a34a', 'misc': '#6b7280',
+  'beer': '#b8862e', 'wine': '#6f2b35', 'spirits': '#2f4f74',
+  'non-alcohol': '#41684c', 'misc': '#968d7d',
 };
-const FALLBACK_COLORS = ['#0ea5e9', '#ef4444', '#84cc16', '#e879f9', '#f97316', '#14b8a6'];
+const FALLBACK_COLORS = ['#7d6850', '#4f6b66', '#8a4b3c', '#5d5a74', '#a3621c'];
+Chart.defaults.font.family = "'Public Sans', 'Segoe UI', sans-serif";
+Chart.defaults.color = '#6f675a';
+Chart.defaults.borderColor = '#e4ddcd';
 const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const fmt0 = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
@@ -130,8 +133,8 @@ async function load() {
       datasets: [{
         label: 'Spend',
         data: monthly.map((m) => num(m.total)),
-        borderColor: '#1d4ed8',
-        backgroundColor: 'rgba(29,78,216,.08)',
+        borderColor: '#6f2b35',
+        backgroundColor: 'rgba(111,43,53,.07)',
         fill: true,
         tension: 0.25,
       }],
@@ -165,7 +168,7 @@ async function load() {
     type: 'bar',
     data: {
       labels: vendors.map((v) => v.vendor_name),
-      datasets: [{ data: vendors.map((v) => num(v.total)), backgroundColor: '#f59e0b' }],
+      datasets: [{ data: vendors.map((v) => num(v.total)), backgroundColor: '#b8862e' }],
     },
     options: {
       indexAxis: 'y',
@@ -183,8 +186,8 @@ async function load() {
       <td class="text-muted">${i + 1}</td>
       <td class="fw-semibold">${esc(p.product_description)}</td>
       <td class="text-center"><span class="badge dept-${esc(String(p.gl_code || 'misc').toLowerCase().replace(/ /g, '_'))}">${esc(p.gl_code)}</span></td>
-      <td class="text-end">${num(p.total_qty).toLocaleString()}</td>
-      <td class="text-end fw-semibold text-success">${fmt.format(num(p.total_cost))}</td>
+      <td class="text-end num">${num(p.total_qty).toLocaleString()}</td>
+      <td class="text-end num fw-semibold">${fmt.format(num(p.total_cost))}</td>
     </tr>`).join('') ||
     '<tr><td colspan="5" class="text-center text-muted py-4">No data yet — import some invoices</td></tr>';
 }

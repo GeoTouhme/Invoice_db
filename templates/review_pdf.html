@@ -3,7 +3,7 @@
 
 {% block head %}
 <style>
-  .raw-text-box { max-height: 200px; overflow: auto; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: .375rem; padding: .75rem; font-size: .8rem; white-space: pre-wrap; }
+  .raw-text-box { max-height: 200px; overflow: auto; background: #fbf8f0; border: 1px solid var(--line); border-radius: .375rem; padding: .75rem; font-size: .8rem; white-space: pre-wrap; }
   .line-item-row input { font-size: .85rem; }
 </style>
 {% endblock %}
@@ -17,7 +17,7 @@
     <!-- Raw text reference -->
     <div class="card shadow-sm mb-4">
       <div class="card-header fw-bold d-flex justify-content-between align-items-center">
-        <span>📝 Extracted PDF Text (for reference)</span>
+        <span>Extracted PDF text (reference)</span>
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#rawText">Toggle</button>
       </div>
       <div class="collapse" id="rawText">
@@ -29,7 +29,7 @@
 
     <!-- Invoice Header -->
     <div class="card shadow-sm mb-4">
-      <div class="card-header bg-dark text-white fw-bold">Invoice Header</div>
+      <div class="card-header">Invoice header</div>
       <div class="card-body">
         <div class="row g-3">
           <div class="col-md-2">
@@ -78,14 +78,14 @@
 
     <!-- Line Items -->
     <div class="card shadow-sm mb-4">
-      <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
-        <span>Line Items</span>
-        <button type="button" class="btn btn-sm btn-light" onclick="addRow()">+ Add Row</button>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Line items</span>
+        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addRow()">+ Add row</button>
       </div>
       <div class="card-body">
         <div class="table-responsive">
           <table class="table table-sm table-bordered align-middle" id="itemsTable">
-            <thead class="table-secondary">
+            <thead>
               <tr>
                 <th style="width:120px">Product #</th>
                 <th style="width:140px">UPC</th>
@@ -126,14 +126,14 @@
         </div>
         <div class="d-flex justify-content-end align-items-center gap-3 mt-2">
           <span class="text-muted small">Sum of extended prices:</span>
-          <strong id="lineSum">$0.00</strong>
+          <strong id="lineSum" class="num">$0.00</strong>
           <span class="badge" id="sumBadge"></span>
         </div>
       </div>
     </div>
 
     <div class="d-flex gap-2 mb-5">
-      <button type="submit" class="btn btn-success px-4" id="importBtn">✅ Import into Database</button>
+      <button type="submit" class="btn btn-success px-4" id="importBtn">Import into database</button>
       <a href="{{ url_for('upload_pdf') }}" class="btn btn-outline-secondary">Cancel</a>
     </div>
 
@@ -184,10 +184,10 @@ function updateTotals() {
     badge.textContent = 'no invoice total to compare';
   } else if (Math.abs(sum - total) < 0.01) {
     badge.className = 'badge text-bg-success';
-    badge.textContent = '✓ matches invoice total';
+    badge.textContent = 'matches invoice total';
   } else {
     badge.className = 'badge text-bg-warning';
-    badge.textContent = '⚠ off by ' + fmt.format(Math.abs(sum - total));
+    badge.textContent = 'off by ' + fmt.format(Math.abs(sum - total));
   }
 }
 

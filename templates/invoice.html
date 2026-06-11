@@ -4,14 +4,14 @@
 {% block content %}
 
   <div class="d-flex justify-content-between align-items-center mb-3 no-print">
-    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">← Back to search</a>
-    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">🖨️ Print</button>
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">&larr; Back to search</a>
+    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">Print</button>
   </div>
 
   {% set line_sum = items | map(attribute='extended_price') | select | sum %}
   {% if inv.invoice_total is not none and (line_sum - inv.invoice_total) | abs > 0.01 %}
   <div class="alert alert-warning shadow-sm">
-    ⚠️ Line items add up to <strong>{{ line_sum | money }}</strong>, but the invoice total is
+    Line items add up to <strong>{{ line_sum | money }}</strong>, but the invoice total is
     <strong>{{ inv.invoice_total | money }}</strong>
     (difference of {{ (line_sum - inv.invoice_total) | abs | money }}).
     Some items may be missing or mis-entered.
@@ -20,9 +20,9 @@
 
   <!-- Invoice Header -->
   <div class="card shadow-sm mb-4">
-    <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between">
+    <div class="card-header d-flex justify-content-between">
       <span>Invoice #{{ inv.invoice_number }}</span>
-      <span class="fw-normal">{{ inv.vendor_name }}</span>
+      <span>{{ inv.vendor_name }}</span>
     </div>
     <div class="card-body">
       <div class="row g-3">
@@ -40,7 +40,7 @@
         </div>
         <div class="col-md-3 col-6">
           <small class="text-muted d-block">Invoice Total</small>
-          <strong class="text-success fs-5">{{ inv.invoice_total | money }}</strong>
+          <strong class="font-serif fs-5 num">{{ inv.invoice_total | money }}</strong>
         </div>
         <div class="col-md-4 col-6">
           <small class="text-muted d-block">Vendor</small>
@@ -64,10 +64,10 @@
 
   <!-- Items Table -->
   <div class="card shadow-sm">
-    <div class="card-header fw-bold">Line Items <span class="text-muted fw-normal">({{ items | length }})</span></div>
+    <div class="card-header">Line Items <span class="text-muted">({{ items | length }})</span></div>
     <div class="table-responsive">
       <table class="table table-hover table-sm mb-0 align-middle">
-        <thead class="table-secondary">
+        <thead>
           <tr>
             <th>Product #</th>
             <th>Description</th>
@@ -90,21 +90,21 @@
               </span>
             </td>
             <td class="text-center">{{ item.quantity }} <small class="text-muted">{{ item.unit_of_measure }}</small></td>
-            <td class="text-end">{{ item.unit_cost | money }}</td>
-            <td class="text-end {{ 'text-success' if item.total_adjustments }}">{{ (item.total_adjustments or 0) | money }}</td>
-            <td class="text-end {{ 'text-danger' if item.total_discount }}">{{ (item.total_discount or 0) | money }}</td>
-            <td class="text-end fw-semibold">{{ item.extended_price | money }}</td>
+            <td class="text-end num">{{ item.unit_cost | money }}</td>
+            <td class="text-end num text-muted">{{ (item.total_adjustments or 0) | money }}</td>
+            <td class="text-end num text-muted">{{ (item.total_discount or 0) | money }}</td>
+            <td class="text-end num fw-semibold">{{ item.extended_price | money }}</td>
           </tr>
           {% endfor %}
         </tbody>
-        <tfoot class="table-light">
+        <tfoot>
           <tr>
-            <td colspan="7" class="text-end fw-bold">Sum of line items:</td>
-            <td class="text-end fw-bold">{{ line_sum | money }}</td>
+            <td colspan="7" class="text-end fw-semibold">Sum of line items</td>
+            <td class="text-end num fw-semibold">{{ line_sum | money }}</td>
           </tr>
           <tr>
-            <td colspan="7" class="text-end fw-bold">Invoice Total:</td>
-            <td class="text-end fw-bold text-success">{{ inv.invoice_total | money }}</td>
+            <td colspan="7" class="text-end fw-bold">Invoice total</td>
+            <td class="text-end num fw-bold">{{ inv.invoice_total | money }}</td>
           </tr>
         </tfoot>
       </table>

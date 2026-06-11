@@ -7,9 +7,7 @@
     <div class="col-lg-8">
 
       <div class="card shadow-sm mb-4">
-        <div class="card-header bg-dark text-white fw-bold">
-          📤 Upload New CSV
-        </div>
+        <div class="card-header">Import a CSV file</div>
         <div class="card-body">
           <p class="text-muted">
             Select a CSV file containing new or updated invoices.
@@ -21,10 +19,9 @@
             <input type="file" name="file" id="file" accept=".csv" class="d-none">
 
             <div class="dropzone mb-3" id="dropzone" role="button" tabindex="0">
-              <div class="fs-1">🗂️</div>
-              <p class="fw-semibold mb-1">Drag &amp; drop your CSV here</p>
-              <p class="text-muted small mb-2">or click to browse</p>
-              <p class="small fw-semibold mb-0 d-none" id="fileName"></p>
+              <p class="font-serif fs-5 mb-1">Drop your CSV file here</p>
+              <p class="dz-hint small mb-0">or <span class="dz-browse">browse your computer</span></p>
+              <p class="small fw-semibold mb-0 mt-2 d-none" id="fileName"></p>
             </div>
 
             <div class="d-flex gap-2">
@@ -36,7 +33,7 @@
       </div>
 
       <div class="card shadow-sm">
-        <div class="card-header fw-bold">📋 CSV Requirements</div>
+        <div class="card-header">Required columns</div>
         <div class="card-body">
           <p class="small text-muted mb-2">The file must contain the following columns exactly:</p>
           <div class="d-flex flex-wrap gap-1">

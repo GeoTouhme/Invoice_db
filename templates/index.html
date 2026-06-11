@@ -9,21 +9,21 @@
       <form method="get" class="row g-3">
 
         <div class="col-md-3">
-          <label class="form-label fw-semibold" for="f-name">🔍 Product Name</label>
+          <label class="form-label" for="f-name">Product Name</label>
           <input type="search" name="name" id="f-name" class="form-control"
                  placeholder="e.g. CORONA, LITE …"
                  value="{{ filters.name }}">
         </div>
 
         <div class="col-md-2">
-          <label class="form-label fw-semibold" for="f-upc">📦 UPC / Barcode</label>
+          <label class="form-label" for="f-upc">UPC / Barcode</label>
           <input type="search" name="upc" id="f-upc" class="form-control"
                  placeholder="034100576363"
                  value="{{ filters.upc }}">
         </div>
 
         <div class="col-md-2">
-          <label class="form-label fw-semibold" for="f-department">🏷️ Department</label>
+          <label class="form-label" for="f-department">Department</label>
           <select name="department" id="f-department" class="form-select">
             <option value="">— All —</option>
             {% for d in departments %}
@@ -35,7 +35,7 @@
         </div>
 
         <div class="col-md-3">
-          <label class="form-label fw-semibold" for="f-vendor">🏭 Vendor</label>
+          <label class="form-label" for="f-vendor">Vendor</label>
           <select name="vendor" id="f-vendor" class="form-select">
             <option value="">— All —</option>
             {% for v in vendors %}
@@ -47,13 +47,13 @@
         </div>
 
         <div class="col-md-1 col-6">
-          <label class="form-label fw-semibold" for="f-from">From</label>
+          <label class="form-label" for="f-from">From</label>
           <input type="date" name="date_from" id="f-from" class="form-control"
                  value="{{ filters.date_from }}">
         </div>
 
         <div class="col-md-1 col-6">
-          <label class="form-label fw-semibold" for="f-to">To</label>
+          <label class="form-label" for="f-to">To</label>
           <input type="date" name="date_to" id="f-to" class="form-control"
                  value="{{ filters.date_to }}">
         </div>
@@ -61,9 +61,9 @@
         <div class="col-12 d-flex gap-2 align-items-center flex-wrap">
           <button type="submit" class="btn btn-primary px-4">Search</button>
           <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Clear</a>
-          <span class="ms-auto text-muted small">
+          <span class="ms-auto text-muted small num">
             <strong>{{ "{:,}".format(total) }}</strong> line item{{ '' if total == 1 else 's' }}
-            &nbsp;·&nbsp; total <strong class="text-success">{{ spend | money }}</strong>
+            &nbsp;·&nbsp; total <strong>{{ spend | money }}</strong>
           </span>
         </div>
 
@@ -75,7 +75,7 @@
   <div class="card shadow-sm">
     <div class="table-responsive table-sticky">
       <table class="table table-hover table-sm align-middle mb-0">
-        <thead class="table-dark">
+        <thead>
           <tr>
             <th>Product</th>
             <th>UPC</th>
@@ -99,8 +99,8 @@
               </span>
             </td>
             <td class="text-center">{{ p.quantity }} <small class="text-muted">{{ p.unit_of_measure }}</small></td>
-            <td class="text-end">{{ p.unit_cost | money }}</td>
-            <td class="text-end fw-bold text-success">{{ p.extended_price | money }}</td>
+            <td class="text-end num">{{ p.unit_cost | money }}</td>
+            <td class="text-end num fw-semibold">{{ p.extended_price | money }}</td>
             <td class="small text-muted" style="max-width:180px">{{ p.vendor_name }}</td>
             <td class="text-center small text-nowrap">{{ p.invoice_date }}</td>
             <td class="text-center">
@@ -113,9 +113,8 @@
           {% else %}
           <tr>
             <td colspan="9" class="text-center text-muted py-5">
-              <div class="fs-1 mb-2">🔎</div>
-              <div class="fw-semibold">No results</div>
-              <div class="small">Try adjusting or <a href="{{ url_for('index') }}">clearing</a> your filters</div>
+              <div class="font-serif fs-5 mb-1">No results for these filters</div>
+              <div class="small">Try widening the date range, or <a href="{{ url_for('index') }}">start over</a></div>
             </td>
           </tr>
           {% endfor %}

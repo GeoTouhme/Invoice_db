@@ -1,56 +1,290 @@
-body {
-  font-family: 'Segoe UI', system-ui, -apple-system, Tahoma, sans-serif;
+/* ── Balport design system ──────────────────────────────────────────────────
+   Warm "paper ledger" palette: ink on cream, wine + amber accents.
+   Type: Fraunces (serif, headings & numerals) / Public Sans (body).        */
+
+:root {
+  --paper:      #f5f1e8;
+  --surface:    #fffdf7;
+  --ink:        #272219;
+  --ink-soft:   #6f675a;
+  --ink-faint:  #968d7d;
+  --line:       #e4ddcd;
+  --line-dark:  #cfc6b2;
+  --wine:       #6f2b35;
+  --wine-dark:  #571f28;
+  --wine-tint:  #f0e4e4;
+  --amber:      #a3621c;
+  --amber-tint: #f2e5cd;
+  --green:      #41684c;
+  --green-tint: #e0eadf;
+  --blue:       #2f4f74;
+  --blue-tint:  #dfe6ee;
+
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --sans:  "Public Sans", "Segoe UI", system-ui, sans-serif;
 }
 
-.table td, .table th { vertical-align: middle; }
-code { color: #6f42c1; font-size: 0.85em; }
-.btn-xs { font-size: 0.75rem; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: .925rem;
+}
 
-.card { border: none; border-radius: .5rem; }
-.card-header { border-radius: .5rem .5rem 0 0 !important; }
+h1, h2, h3, .font-serif { font-family: var(--serif); }
+
+a { color: var(--wine); }
+a:hover { color: var(--wine-dark); }
+
+code { color: var(--ink-soft); font-size: .85em; }
+
+/* ── Top bar ── */
+.topbar {
+  background: #28211a;
+  border-bottom: 3px solid var(--wine);
+}
+.topbar .navbar-brand {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.3rem;
+  color: #f4ecdb;
+  letter-spacing: .01em;
+}
+.topbar .navbar-brand:hover { color: #fff; }
+.topbar .brand-sub {
+  font-family: var(--sans);
+  font-size: .62rem;
+  font-weight: 600;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: #a99c86;
+  display: block;
+  margin-top: -2px;
+}
+.topbar .nav-link {
+  color: #b5a992;
+  font-size: .875rem;
+  font-weight: 500;
+  margin-right: .25rem;
+  padding-bottom: .55rem;
+  border-bottom: 2px solid transparent;
+}
+.topbar .nav-link:hover { color: #ece3d0; }
+.topbar .nav-link.active {
+  color: #f4ecdb;
+  border-bottom-color: var(--amber);
+}
+.topbar .btn-signout {
+  color: #b5a992;
+  border: 1px solid #4a4136;
+  font-size: .8rem;
+}
+.topbar .btn-signout:hover { color: #ece3d0; border-color: #6f6452; }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: .4rem;
+}
+.shadow-sm { box-shadow: 0 1px 2px rgba(39, 34, 25, .06) !important; }
+.card-header {
+  background: transparent;
+  border-bottom: 1px solid var(--line);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding-top: .65rem;
+  padding-bottom: .6rem;
+}
+
+/* ── Forms ── */
+.form-label {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: .25rem;
+}
+.form-control, .form-select {
+  background-color: #fff;
+  border-color: var(--line-dark);
+  color: var(--ink);
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--wine);
+  box-shadow: 0 0 0 .2rem rgba(111, 43, 53, .12);
+}
+
+/* ── Buttons ── */
+.btn { border-radius: .35rem; }
+.btn-primary {
+  --bs-btn-bg: var(--wine);
+  --bs-btn-border-color: var(--wine);
+  --bs-btn-hover-bg: var(--wine-dark);
+  --bs-btn-hover-border-color: var(--wine-dark);
+  --bs-btn-active-bg: var(--wine-dark);
+  --bs-btn-active-border-color: var(--wine-dark);
+  --bs-btn-focus-shadow-rgb: 111, 43, 53;
+}
+.btn-success {
+  --bs-btn-bg: var(--green);
+  --bs-btn-border-color: var(--green);
+  --bs-btn-hover-bg: #34543d;
+  --bs-btn-hover-border-color: #34543d;
+  --bs-btn-active-bg: #34543d;
+  --bs-btn-active-border-color: #34543d;
+}
+.btn-outline-secondary {
+  --bs-btn-color: var(--ink-soft);
+  --bs-btn-border-color: var(--line-dark);
+  --bs-btn-hover-bg: #efe9da;
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-hover-border-color: var(--line-dark);
+  --bs-btn-active-bg: #efe9da;
+  --bs-btn-active-color: var(--ink);
+  --bs-btn-active-border-color: var(--line-dark);
+}
+.btn-xs { font-size: .75rem; }
+
+/* ── Tables ── */
+.table { --bs-table-hover-bg: #f4efe2; color: var(--ink); }
+.table > :not(caption) > * > * { background: transparent; }
+.table thead th {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border-bottom: 2px solid var(--ink);
+  white-space: nowrap;
+}
+.table td, .table th { vertical-align: middle; }
+.table tbody td { border-color: var(--line); }
+.table tfoot td {
+  background: #f6f1e4;
+  border-top: 2px solid var(--ink);
+}
+.num {
+  font-variant-numeric: tabular-nums;
+}
 
 /* Sticky header for long result tables */
 .table-sticky { max-height: 70vh; }
-.table-sticky thead th {
-  position: sticky;
-  top: 0;
-  z-index: 2;
+.table-sticky thead th { position: sticky; top: 0; z-index: 2; }
+
+/* ── Department badges: quiet tints, not traffic lights ── */
+.badge[class*="dept-"] {
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  padding: .3em .7em;
+  border-radius: 999px;
+  background: #ebe5d6;
+  color: #5d564a;
+}
+.dept-beer        { background: var(--amber-tint) !important; color: #7c4d12 !important; }
+.dept-wine        { background: var(--wine-tint)  !important; color: var(--wine) !important; }
+.dept-spirits     { background: var(--blue-tint)  !important; color: var(--blue) !important; }
+.dept-non-alcohol { background: var(--green-tint) !important; color: var(--green) !important; }
+
+/* Soften Bootstrap's loud status badges to match the palette */
+.badge.text-bg-success   { background: var(--green-tint) !important; color: var(--green) !important; }
+.badge.text-bg-warning   { background: var(--amber-tint) !important; color: #7c4d12 !important; }
+.badge.text-bg-secondary { background: #ebe5d6 !important; color: var(--ink-soft) !important; }
+.badge.text-bg-light     { background: var(--surface) !important; color: var(--ink-soft) !important;
+                           border-color: var(--line-dark) !important; font-weight: 500; }
+
+/* ── Pagination ── */
+.pagination {
+  --bs-pagination-color: var(--ink-soft);
+  --bs-pagination-bg: transparent;
+  --bs-pagination-border-color: transparent;
+  --bs-pagination-hover-bg: #efe9da;
+  --bs-pagination-hover-color: var(--ink);
+  --bs-pagination-hover-border-color: transparent;
+  --bs-pagination-focus-bg: #efe9da;
+  --bs-pagination-focus-color: var(--ink);
+  --bs-pagination-active-bg: var(--wine);
+  --bs-pagination-active-border-color: var(--wine);
+  --bs-pagination-disabled-bg: transparent;
+  --bs-pagination-disabled-border-color: transparent;
+}
+.page-link { border-radius: .35rem; margin: 0 1px; }
+
+/* ── Alerts ── */
+.alert { border-radius: .4rem; }
+.alert-success {
+  background: var(--green-tint);
+  border-color: #c4d6c5;
+  color: #2c4b35;
+}
+.alert-danger {
+  background: #f3e0e0;
+  border-color: #ddbcbc;
+  color: #71292d;
+}
+.alert-warning {
+  background: var(--amber-tint);
+  border-color: #e0cba3;
+  color: #6f4a13;
 }
 
-/* Department badge colors */
-.badge { font-size: 0.8em; padding: 4px 8px; }
-.dept-beer        { background-color: #f59e0b; color: #000; }
-.dept-wine        { background-color: #7c3aed; color: #fff; }
-.dept-spirits     { background-color: #1d4ed8; color: #fff; }
-.dept-non-alcohol { background-color: #16a34a; color: #fff; }
-.dept-misc        { background-color: #6b7280; color: #fff; }
-/* fallback for any other department */
-[class*="dept-"]:not(.dept-beer):not(.dept-wine):not(.dept-spirits):not(.dept-non-alcohol):not(.dept-misc) {
-  background-color: #374151;
-  color: #fff;
-}
-
-/* Drag & drop upload zone */
+/* ── Drag & drop upload zone ── */
 .dropzone {
-  border: 2px dashed #adb5bd;
-  border-radius: .5rem;
-  padding: 2.5rem 1rem;
+  border: 1.5px dashed var(--line-dark);
+  border-radius: .4rem;
+  padding: 2.75rem 1rem;
   text-align: center;
   cursor: pointer;
-  background: #fff;
+  background: #fbf8f0;
   transition: border-color .15s ease, background-color .15s ease;
 }
 .dropzone:hover,
-.dropzone:focus-visible { border-color: #0d6efd; background: #f0f6ff; outline: none; }
-.dropzone.dragover { border-color: #0d6efd; background: #e7f1ff; }
-.dropzone.has-file { border-color: #198754; background: #f2fbf6; }
-.dropzone.has-file #fileName,
-.dropzone #fileName { color: #198754; }
+.dropzone:focus-visible { border-color: var(--wine); background: #f7f1e6; outline: none; }
+.dropzone.dragover { border-color: var(--wine); background: var(--wine-tint); }
+.dropzone.has-file { border-color: var(--green); background: var(--green-tint); }
+.dropzone #fileName { color: var(--green); }
+.dropzone .dz-hint { color: var(--ink-faint); }
+.dropzone .dz-browse {
+  color: var(--wine);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
-/* Print: keep only the invoice content */
+/* ── KPI cards on the dashboard ── */
+.kpi-label {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.kpi-value {
+  font-family: var(--serif);
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Footer ── */
+.footer-note {
+  font-size: .7rem;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  text-align: center;
+  padding: 2.5rem 0 2rem;
+}
+
+/* ── Print: keep only the invoice content ── */
 @media print {
-  .no-print, .navbar, .pagination, footer { display: none !important; }
+  .no-print, .topbar, .pagination, .footer-note { display: none !important; }
   body { background: #fff !important; }
-  .card { box-shadow: none !important; border: 1px solid #dee2e6 !important; }
+  .card { box-shadow: none !important; border: 1px solid #ccc !important; }
   a { text-decoration: none; color: inherit; }
 }
