@@ -8,3 +8,4 @@ venv/
 *.sqlite3
 instance/
 .DS_Store
+.pytest_cache/

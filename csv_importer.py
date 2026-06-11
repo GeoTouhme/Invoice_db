@@ -4,9 +4,10 @@ Supports both full reload (truncate) and incremental append/update.
 """
 
 import csv
-import os
 
 import psycopg2
+
+from invoice_store import INSERT_ITEM_SQL, UPSERT_INVOICE_SQL
 
 REQUIRED_HEADERS = [
     "Invoice Date",
@@ -34,12 +35,71 @@ REQUIRED_HEADERS = [
 ]
 
 
-def _to_float(val: str) -> float | None:
+def _to_float(val: str | None) -> float | None:
     return float(val) if val and val.strip() else None
 
 
-def _to_int(val: str) -> int | None:
+def _to_int(val: str | None) -> int | None:
     return int(val) if val and val.strip() else None
+
+
+def parse_csv(file_path: str) -> tuple[dict[str, tuple], list[tuple]]:
+    """Read the CSV once and return (invoices, items).
+
+    invoices maps invoice_number -> tuple in UPSERT_INVOICE_SQL order
+    (first row wins for invoice-level fields).
+    items is a list of tuples in INSERT_ITEM_SQL order.
+
+    Raises ValueError if required columns are missing.
+    """
+    invoices: dict[str, tuple] = {}
+    items: list[tuple] = []
+
+    with open(file_path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        headers = reader.fieldnames or []
+        missing = [h for h in REQUIRED_HEADERS if h not in headers]
+        if missing:
+            raise ValueError(f"Missing required columns: {', '.join(missing)}")
+
+        for row in reader:
+            inv_num = (row["Invoice Number"] or "").strip()
+            if not inv_num:
+                continue
+
+            if inv_num not in invoices:
+                invoices[inv_num] = (
+                    inv_num,
+                    row["Invoice Date"] or None,
+                    row["Invoice Due Date"] or None,
+                    row["Process Date"] or None,
+                    _to_float(row["Invoice Total"]),
+                    _to_int(row["Item Count"]),
+                    row["Vendor Name"],
+                    row["Retailer Name"],
+                    row["Customer ID"],
+                    row["Store ID"],
+                )
+
+            items.append(
+                (
+                    inv_num,
+                    row["Product Number"],
+                    row["UPC Number"],
+                    row["Pack UPC"],
+                    row["Product Description"],
+                    row["GL Code"],
+                    _to_float(row["Quantity"]),
+                    _to_float(row["Unit Cost"]),
+                    row["Unit of Measure"],
+                    _to_float(row["Total Adjustments"]),
+                    _to_float(row["Total Discount"]),
+                    _to_float(row["Extended Price"]),
+                    _to_float(row["PPC"]),
+                )
+            )
+
+    return invoices, items
 
 
 def import_csv(file_path: str, db_url: str, *, truncate: bool = False) -> dict:
@@ -62,118 +122,30 @@ def import_csv(file_path: str, db_url: str, *, truncate: bool = False) -> dict:
     dict
         {"invoices": N, "items": N}
     """
-    schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
+    invoices, items = parse_csv(file_path)
 
     conn = psycopg2.connect(db_url)
-    cur = conn.cursor()
-
-    # Apply / ensure schema
-    with open(schema_path) as f:
-        cur.execute(f.read())
-
-    if truncate:
-        cur.execute("TRUNCATE invoice_items, invoices RESTART IDENTITY CASCADE")
-
-    invoices_in_csv: set[str] = set()
-    items: list[tuple] = []
-
-    with open(file_path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        headers = reader.fieldnames or []
-        missing = [h for h in REQUIRED_HEADERS if h not in headers]
-        if missing:
-            raise ValueError(f"Missing required columns: {', '.join(missing)}")
-
-        for row in reader:
-            inv_num = row["Invoice Number"]
-            if not inv_num:
-                continue
-            invoices_in_csv.add(inv_num)
-
-            items.append(
-                (
-                    inv_num,
-                    row["Product Number"],
-                    row["UPC Number"],
-                    row["Pack UPC"],
-                    row["Product Description"],
-                    row["GL Code"],
-                    _to_float(row["Quantity"]),
-                    _to_float(row["Unit Cost"]),
-                    row["Unit of Measure"],
-                    _to_float(row["Total Adjustments"]),
-                    _to_float(row["Total Discount"]),
-                    _to_float(row["Extended Price"]),
-                    _to_float(row["PPC"]),
+    try:
+        with conn.cursor() as cur:
+            if truncate:
+                cur.execute("TRUNCATE invoice_items, invoices RESTART IDENTITY CASCADE")
+            elif invoices:
+                # Idempotency: remove old items for invoices we're re-importing
+                cur.execute(
+                    "DELETE FROM invoice_items WHERE invoice_number = ANY(%s)",
+                    (list(invoices),),
                 )
-            )
 
-    # --- Idempotency: remove old items for invoices we're about to (re)import ---
-    if invoices_in_csv and not truncate:
-        cur.execute(
-            "DELETE FROM invoice_items WHERE invoice_number = ANY(%s)",
-            (list(invoices_in_csv),),
-        )
+            for inv in invoices.values():
+                cur.execute(UPSERT_INVOICE_SQL, inv)
 
-    # --- Insert / update invoices ---
-    # We re-read the CSV to get invoice-level data.  Could be optimised by
-    # building a dict in the first pass, but for ~10k rows the difference is
-    # negligible and this keeps the code simple.
-    invoices_seen: set[str] = set()
-    with open(file_path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            inv_num = row["Invoice Number"]
-            if not inv_num or inv_num in invoices_seen:
-                continue
-            invoices_seen.add(inv_num)
+            cur.executemany(INSERT_ITEM_SQL, items)
 
-            cur.execute(
-                """
-                INSERT INTO invoices
-                    (invoice_number, invoice_date, invoice_due_date, process_date,
-                     invoice_total, item_count, vendor_name, retailer_name,
-                     customer_id, store_id)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                ON CONFLICT (invoice_number) DO UPDATE SET
-                    invoice_date      = EXCLUDED.invoice_date,
-                    invoice_due_date  = EXCLUDED.invoice_due_date,
-                    process_date      = EXCLUDED.process_date,
-                    invoice_total     = EXCLUDED.invoice_total,
-                    item_count        = EXCLUDED.item_count,
-                    vendor_name       = EXCLUDED.vendor_name,
-                    retailer_name     = EXCLUDED.retailer_name,
-                    customer_id       = EXCLUDED.customer_id,
-                    store_id          = EXCLUDED.store_id
-                """,
-                (
-                    inv_num,
-                    row["Invoice Date"] or None,
-                    row["Invoice Due Date"] or None,
-                    row["Process Date"] or None,
-                    _to_float(row["Invoice Total"]),
-                    _to_int(row["Item Count"]),
-                    row["Vendor Name"],
-                    row["Retailer Name"],
-                    row["Customer ID"],
-                    row["Store ID"],
-                ),
-            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
-    # --- Insert line items ---
-    cur.executemany(
-        """
-        INSERT INTO invoice_items
-            (invoice_number, product_number, upc_number, pack_upc, product_description,
-             gl_code, quantity, unit_cost, unit_of_measure, total_adjustments,
-             total_discount, extended_price, ppc)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-        """,
-        items,
-    )
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    return {"invoices": len(invoices_seen), "items": len(items)}
+    return {"invoices": len(invoices), "items": len(items)}

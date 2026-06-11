@@ -1,20 +1,154 @@
+import hmac
+import logging
 import os
+import secrets
+import tempfile
 
-from flask import Flask, render_template, request, jsonify, abort, redirect, url_for, flash
-from db import query
+from flask import (
+    Flask,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+    url_for,
+)
+from flask_wtf.csrf import CSRFError, CSRFProtect
+from werkzeug.exceptions import RequestEntityTooLarge
+
 from csv_importer import import_csv
-from pdf_extractor import extract_text_from_pdf
+from db import connection, query
+from invoice_store import replace_invoice
 from llm_extractor import extract_invoice_data
+from pdf_extractor import extract_text_from_pdf
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret")
+
+_secret = os.environ.get("SECRET_KEY")
+if not _secret:
+    # Random per-process key: sessions/flash still work, but won't survive a
+    # restart and won't be shared between gunicorn workers. Set SECRET_KEY!
+    _secret = secrets.token_hex(32)
+    log.warning("SECRET_KEY is not set; using a random per-process key. "
+                "Set SECRET_KEY in production.")
+app.secret_key = _secret
+
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB upload cap
+
+csrf = CSRFProtect(app)
+
+# ── Authentication ────────────────────────────────────────────────────────────
+# Single-user auth via env vars. If APP_PASSWORD is unset, auth is disabled
+# (convenient for local dev) and a warning is logged.
+
+APP_USERNAME = os.environ.get("APP_USERNAME", "admin")
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "")
+
+if not APP_PASSWORD:
+    log.warning("APP_PASSWORD is not set; the app is accessible without login. "
+                "Set APP_USERNAME / APP_PASSWORD in production.")
+
+_PUBLIC_ENDPOINTS = {"login", "static"}
+
+
+@app.before_request
+def require_login():
+    if not APP_PASSWORD:
+        return
+    if request.endpoint in _PUBLIC_ENDPOINTS:
+        return
+    if session.get("logged_in"):
+        return
+    next_url = request.full_path.rstrip("?") if request.method == "GET" else None
+    return redirect(url_for("login", next=next_url))
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if not APP_PASSWORD:
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        user_ok = hmac.compare_digest(username, APP_USERNAME)
+        pass_ok = hmac.compare_digest(password, APP_PASSWORD)
+        if user_ok and pass_ok:
+            session["logged_in"] = True
+            target = request.args.get("next", "")
+            # Only follow same-site relative paths to avoid open redirects
+            if not target.startswith("/") or target.startswith("//"):
+                target = url_for("index")
+            return redirect(target)
+        flash("Invalid username or password", "danger")
+
+    return render_template("login.html")
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    flash("Logged out", "success")
+    return redirect(url_for("login"))
+
+
+@app.context_processor
+def inject_auth():
+    return {"auth_enabled": bool(APP_PASSWORD)}
+
+
+# ── Error handlers ────────────────────────────────────────────────────────────
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_too_large(_exc):
+    flash("File is too large (max 16 MB)", "danger")
+    return redirect(request.referrer or url_for("index"))
+
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(exc):
+    flash(f"Form session expired, please try again ({exc.description})", "danger")
+    return redirect(request.referrer or url_for("index"))
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _paginate(page, per_page=50):
-    page = max(1, int(page))
+    try:
+        page = max(1, int(page))
+    except (TypeError, ValueError):
+        page = 1
     return page, per_page, (page - 1) * per_page
+
+
+def _parse_num(raw, label, errors, *, required=False, default=None,
+               as_int=False):
+    """Parse a number from form input, tolerating $ signs and thousands
+    separators. Appends a message to `errors` instead of raising."""
+    raw = (raw or "").strip().replace("$", "").replace(",", "")
+    if not raw:
+        if required:
+            errors.append(f"{label} is required")
+        return default
+    try:
+        return int(raw) if as_int else float(raw)
+    except ValueError:
+        errors.append(f"{label}: '{raw}' is not a valid number")
+        return default
+
+
+def _save_upload(uploaded, suffix):
+    """Persist an uploaded file to a unique temp path (safe under multiple
+    gunicorn workers, works on Windows too). Caller must delete it."""
+    fd, path = tempfile.mkstemp(prefix="balport_upload_", suffix=suffix)
+    os.close(fd)
+    uploaded.save(path)
+    return path
 
 
 # ── Products search (main page) ───────────────────────────────────────────────
@@ -176,9 +310,7 @@ def upload():
             flash("Only CSV files are allowed", "danger")
             return redirect(url_for("upload"))
 
-        temp_path = "/tmp/balport_upload.csv"
-        uploaded.save(temp_path)
-
+        temp_path = _save_upload(uploaded, ".csv")
         try:
             result = import_csv(temp_path, os.environ["DATABASE_URL"], truncate=False)
             flash(
@@ -187,8 +319,11 @@ def upload():
             )
         except ValueError as exc:
             flash(f"File error: {exc}", "danger")
-        except Exception as exc:
-            flash(f"Unexpected error: {exc}", "danger")
+        except Exception:
+            log.exception("CSV import failed")
+            flash("Unexpected error during import — check the server logs", "danger")
+        finally:
+            os.unlink(temp_path)
 
         return redirect(url_for("upload"))
 
@@ -196,6 +331,21 @@ def upload():
 
 
 # ── PDF Upload ────────────────────────────────────────────────────────────────
+
+EMPTY_INVOICE = {
+    "invoice_number": "",
+    "invoice_date": "",
+    "invoice_due_date": "",
+    "process_date": "",
+    "invoice_total": "",
+    "item_count": "",
+    "vendor_name": "",
+    "retailer_name": "Balport Liquor Store",
+    "customer_id": "",
+    "store_id": "000001",
+    "line_items": [],
+}
+
 
 @app.route("/upload-pdf", methods=["GET", "POST"])
 def upload_pdf():
@@ -209,165 +359,113 @@ def upload_pdf():
             flash("Only PDF files are allowed", "danger")
             return redirect(url_for("upload_pdf"))
 
-        temp_path = "/tmp/balport_upload.pdf"
-        uploaded.save(temp_path)
-
+        temp_path = _save_upload(uploaded, ".pdf")
         try:
             raw_text = extract_text_from_pdf(temp_path)
-        except Exception as exc:
-            flash(f"Failed to extract text from PDF: {exc}", "danger")
+        except Exception:
+            log.exception("PDF text extraction failed")
+            flash("Failed to extract text from PDF", "danger")
             return redirect(url_for("upload_pdf"))
+        finally:
+            os.unlink(temp_path)
 
-        # Optional AI auto-fill
+        # Optional AI auto-fill; falls back to an empty form
         ai_data = extract_invoice_data(raw_text)
-
-        # If AI failed or no key, provide empty template
-        data = ai_data if ai_data else {
-            "invoice_number": "",
-            "invoice_date": "",
-            "invoice_due_date": "",
-            "process_date": "",
-            "invoice_total": "",
-            "item_count": "",
-            "vendor_name": "",
-            "retailer_name": "Balport Liquor Store",
-            "customer_id": "",
-            "store_id": "000001",
-            "line_items": [],
-        }
+        data = ai_data if ai_data else dict(EMPTY_INVOICE)
 
         return render_template("review_pdf.html", raw_text=raw_text, data=data)
 
     return render_template("upload_pdf.html")
 
 
-@app.route("/review-pdf", methods=["POST"])
-def review_pdf():
-    """Receive the reviewed form data and import into PostgreSQL."""
+def _form_to_invoice():
+    """Rebuild the invoice dict + line items from the review form.
+    Returns (inv, line_items, errors). Numeric fields are parsed leniently
+    and problems are collected instead of raising."""
+    errors: list[str] = []
+
     inv = {
         "invoice_number": request.form.get("inv_invoice_number", "").strip(),
         "invoice_date": request.form.get("inv_invoice_date", "").strip() or None,
         "invoice_due_date": request.form.get("inv_invoice_due_date", "").strip() or None,
         "process_date": request.form.get("inv_process_date", "").strip() or None,
-        "invoice_total": request.form.get("inv_invoice_total", "").strip(),
-        "item_count": request.form.get("inv_item_count", "").strip(),
+        "invoice_total": _parse_num(request.form.get("inv_invoice_total"),
+                                    "Invoice Total", errors),
+        "item_count": _parse_num(request.form.get("inv_item_count"),
+                                 "Item Count", errors, as_int=True),
         "vendor_name": request.form.get("inv_vendor_name", "").strip(),
         "retailer_name": request.form.get("inv_retailer_name", "").strip(),
         "customer_id": request.form.get("inv_customer_id", "").strip(),
         "store_id": request.form.get("inv_store_id", "").strip(),
     }
 
-    # Gather line items from form arrays
-    line_items = []
-    count = len(request.form.getlist("product_number[]"))
-    for i in range(count):
-        line = {
-            "product_number": request.form.getlist("product_number[]")[i].strip(),
-            "upc_number": request.form.getlist("upc_number[]")[i].strip() or None,
-            "pack_upc": request.form.getlist("pack_upc[]")[i].strip() or None,
-            "product_description": request.form.getlist("product_description[]")[i].strip(),
-            "gl_code": request.form.getlist("gl_code[]")[i].strip() or None,
-            "quantity": request.form.getlist("quantity[]")[i].strip(),
-            "unit_cost": request.form.getlist("unit_cost[]")[i].strip(),
-            "unit_of_measure": request.form.getlist("unit_of_measure[]")[i].strip() or None,
-            "total_adjustments": request.form.getlist("total_adjustments[]")[i].strip() or "0",
-            "total_discount": request.form.getlist("total_discount[]")[i].strip() or "0",
-            "extended_price": request.form.getlist("extended_price[]")[i].strip(),
-            "ppc": request.form.getlist("ppc[]")[i].strip() or None,
-        }
-        # Skip completely empty rows
-        if line["product_number"] or line["product_description"]:
-            line_items.append(line)
-
     if not inv["invoice_number"]:
-        flash("Invoice Number is required", "danger")
-        return redirect(url_for("upload_pdf"))
+        errors.append("Invoice Number is required")
+
+    fields = ["product_number", "upc_number", "pack_upc", "product_description",
+              "gl_code", "quantity", "unit_cost", "unit_of_measure",
+              "total_adjustments", "total_discount", "extended_price", "ppc"]
+    columns = {f: request.form.getlist(f + "[]") for f in fields}
+    count = len(columns["product_number"])
+
+    line_items = []
+    for i in range(count):
+        raw = {f: (columns[f][i].strip() if i < len(columns[f]) else "")
+               for f in fields}
+        # Skip completely empty rows
+        if not raw["product_number"] and not raw["product_description"]:
+            continue
+
+        row_label = f"Row {len(line_items) + 1}"
+        line_items.append({
+            "product_number": raw["product_number"],
+            "upc_number": raw["upc_number"] or None,
+            "pack_upc": raw["pack_upc"] or None,
+            "product_description": raw["product_description"],
+            "gl_code": raw["gl_code"] or None,
+            "quantity": _parse_num(raw["quantity"], f"{row_label} Quantity", errors),
+            "unit_cost": _parse_num(raw["unit_cost"], f"{row_label} Unit Cost", errors),
+            "unit_of_measure": raw["unit_of_measure"] or None,
+            "total_adjustments": _parse_num(raw["total_adjustments"],
+                                            f"{row_label} Adjustments", errors,
+                                            default=0),
+            "total_discount": _parse_num(raw["total_discount"],
+                                         f"{row_label} Discount", errors,
+                                         default=0),
+            "extended_price": _parse_num(raw["extended_price"],
+                                         f"{row_label} Extended Price", errors),
+            "ppc": _parse_num(raw["ppc"], f"{row_label} PPC", errors),
+        })
 
     if not line_items:
-        flash("At least one line item is required", "danger")
-        return redirect(url_for("upload_pdf"))
+        errors.append("At least one line item is required")
+
+    return inv, line_items, errors
+
+
+@app.route("/review-pdf", methods=["POST"])
+def review_pdf():
+    """Receive the reviewed form data and import into PostgreSQL."""
+    inv, line_items, errors = _form_to_invoice()
+    raw_text = request.form.get("raw_text", "")
+
+    if errors:
+        for msg in errors:
+            flash(msg, "danger")
+        # Re-render the form with what the user already typed
+        data = dict(inv, line_items=line_items)
+        return render_template("review_pdf.html", raw_text=raw_text, data=data)
 
     try:
-        conn = query.__wrapped__.__globals__["get_conn"]() if hasattr(query, "__wrapped__") else None
+        with connection() as conn:
+            with conn.cursor() as cur:
+                replace_invoice(cur, inv, line_items)
+            conn.commit()
     except Exception:
-        pass
-
-    # Build minimal CSV in memory and reuse importer
-    import csv
-    import io
-    import tempfile
-    from db import get_conn
-
-    # We need to insert directly because csv_importer expects a file path
-    conn = get_conn()
-    cur = conn.cursor()
-
-    # Upsert invoice
-    cur.execute(
-        """
-        INSERT INTO invoices
-            (invoice_number, invoice_date, invoice_due_date, process_date,
-             invoice_total, item_count, vendor_name, retailer_name,
-             customer_id, store_id)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-        ON CONFLICT (invoice_number) DO UPDATE SET
-            invoice_date      = EXCLUDED.invoice_date,
-            invoice_due_date  = EXCLUDED.invoice_due_date,
-            process_date      = EXCLUDED.process_date,
-            invoice_total     = EXCLUDED.invoice_total,
-            item_count        = EXCLUDED.item_count,
-            vendor_name       = EXCLUDED.vendor_name,
-            retailer_name     = EXCLUDED.retailer_name,
-            customer_id       = EXCLUDED.customer_id,
-            store_id          = EXCLUDED.store_id
-        """,
-        (
-            inv["invoice_number"],
-            inv["invoice_date"],
-            inv["invoice_due_date"],
-            inv["process_date"],
-            float(inv["invoice_total"]) if inv["invoice_total"] else None,
-            int(inv["item_count"]) if inv["item_count"] else None,
-            inv["vendor_name"],
-            inv["retailer_name"],
-            inv["customer_id"],
-            inv["store_id"],
-        ),
-    )
-
-    # Delete old items for this invoice to keep idempotency
-    cur.execute("DELETE FROM invoice_items WHERE invoice_number = %s", (inv["invoice_number"],))
-
-    # Insert new items
-    for line in line_items:
-        cur.execute(
-            """
-            INSERT INTO invoice_items
-                (invoice_number, product_number, upc_number, pack_upc, product_description,
-                 gl_code, quantity, unit_cost, unit_of_measure, total_adjustments,
-                 total_discount, extended_price, ppc)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """,
-            (
-                inv["invoice_number"],
-                line["product_number"],
-                line["upc_number"],
-                line["pack_upc"],
-                line["product_description"],
-                line["gl_code"],
-                float(line["quantity"]) if line["quantity"] else None,
-                float(line["unit_cost"]) if line["unit_cost"] else None,
-                line["unit_of_measure"],
-                float(line["total_adjustments"]) if line["total_adjustments"] else 0,
-                float(line["total_discount"]) if line["total_discount"] else 0,
-                float(line["extended_price"]) if line["extended_price"] else None,
-                float(line["ppc"]) if line["ppc"] else None,
-            ),
-        )
-
-    conn.commit()
-    cur.close()
-    conn.close()
+        log.exception("PDF invoice import failed")
+        flash("Database error while importing — check the server logs", "danger")
+        data = dict(inv, line_items=line_items)
+        return render_template("review_pdf.html", raw_text=raw_text, data=data)
 
     flash(
         f"Import successful: 1 invoice and {len(line_items)} items imported/updated",

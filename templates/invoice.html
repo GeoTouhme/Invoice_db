@@ -11,6 +11,12 @@
 
 <nav class="navbar navbar-dark bg-dark px-4">
   <a class="navbar-brand fw-bold" href="/">Balport Invoices</a>
+  {% if auth_enabled %}
+  <form method="post" action="/logout" class="d-inline m-0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-outline-warning btn-sm">Logout</button>
+  </form>
+  {% endif %}
 </nav>
 
 <div class="container-fluid py-4">

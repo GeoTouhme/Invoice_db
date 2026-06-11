@@ -48,7 +48,11 @@ nano .env
 ```
 DATABASE_URL=postgresql://balport_user:كلمة_السر@localhost:5432/balport
 SECRET_KEY=اكتب_نص_عشوائي_طويل_هنا
+APP_USERNAME=admin
+APP_PASSWORD=كلمة_سر_قوية_لتسجيل_الدخول
 ```
+
+> **مهم:** إذا تركت `APP_PASSWORD` فارغة سيعمل التطبيق **بدون تسجيل دخول** وأي شخص يصل للرابط يستطيع تعديل البيانات.
 
 ## 5. استيراد البيانات
 

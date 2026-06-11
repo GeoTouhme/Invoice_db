@@ -18,6 +18,12 @@
   <div class="d-flex gap-2">
     <a href="/upload-pdf" class="btn btn-outline-light btn-sm">📄 Upload PDF</a>
     <a href="/api/stats" class="btn btn-outline-light btn-sm" target="_blank">JSON Stats</a>
+    {% if auth_enabled %}
+    <form method="post" action="/logout" class="d-inline m-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-warning btn-sm">Logout</button>
+    </form>
+    {% endif %}
   </div>
 </nav>
 
@@ -35,6 +41,8 @@
   {% endwith %}
 
   <form method="post" action="/review-pdf">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea name="raw_text" hidden>{{ raw_text }}</textarea>
 
     <!-- Raw text reference -->
     <div class="card shadow-sm mb-4">

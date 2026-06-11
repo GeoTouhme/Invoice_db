@@ -14,6 +14,12 @@
   <div class="d-flex gap-2">
     <a href="/upload" class="btn btn-outline-light btn-sm">📤 Upload CSV</a>
     <a href="/api/stats" class="btn btn-outline-light btn-sm" target="_blank">JSON Stats</a>
+    {% if auth_enabled %}
+    <form method="post" action="/logout" class="d-inline m-0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-warning btn-sm">Logout</button>
+    </form>
+    {% endif %}
   </div>
 </nav>
 
@@ -43,6 +49,7 @@
         Either way, you will review and edit everything on the next screen before importing.
       </p>
       <form method="post" enctype="multipart/form-data" class="row g-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="col-md-6">
           <label for="file" class="form-label fw-semibold">PDF File</label>
           <input type="file" name="file" id="file" class="form-control" accept=".pdf" required>
