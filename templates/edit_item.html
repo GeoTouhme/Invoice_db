@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Edit Item — Balport{% endblock %}
+
+{% block content %}
+
+  <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <a href="{{ url_for('invoice_detail', invoice_number=item.invoice_number) }}"
+       class="btn btn-outline-secondary btn-sm">&larr; Back to invoice</a>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+
+      <div class="card shadow-sm mb-4">
+        <div class="card-header bg-dark text-white fw-bold">
+          ✏️ Edit Line Item
+        </div>
+        <div class="card-body">
+          <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Product #</label>
+                <input type="text" name="product_number" class="form-control"
+                       value="{{ item.product_number or '' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">UPC</label>
+                <input type="text" name="upc_number" class="form-control"
+                       value="{{ item.upc_number or '' }}">
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Pack UPC</label>
+                <input type="text" name="pack_upc" class="form-control"
+                       value="{{ item.pack_upc or '' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Department</label>
+                <select name="gl_code" class="form-select">
+                  <option value="">— Select —</option>
+                  {% for d in departments %}
+                  <option value="{{ d }}" {% if d == item.gl_code %}selected{% endif %}>
+                    {{ d }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Product Description *</label>
+                <input type="text" name="product_description" class="form-control" required
+                       value="{{ item.product_description or '' }}">
+              </div>
+
+              <div class="col-md-3">
+                <label class="form-label">Quantity</label>
+                <input type="text" name="quantity" class="form-control"
+                       value="{{ item.quantity or '' }}">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">UOM</label>
+                <input type="text" name="unit_of_measure" class="form-control"
+                       value="{{ item.unit_of_measure or '' }}">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Unit Cost</label>
+                <input type="text" name="unit_cost" class="form-control"
+                       value="{{ item.unit_cost or '' }}">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Extended Price</label>
+                <input type="text" name="extended_price" class="form-control"
+                       value="{{ item.extended_price or '' }}">
+              </div>
+
+              <div class="col-md-4">
+                <label class="form-label">Adjustments</label>
+                <input type="text" name="total_adjustments" class="form-control"
+                       value="{{ item.total_adjustments or '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Discount</label>
+                <input type="text" name="total_discount" class="form-control"
+                       value="{{ item.total_discount or '' }}">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">PPC</label>
+                <input type="text" name="ppc" class="form-control"
+                       value="{{ item.ppc or '' }}">
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+              <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+              <a href="{{ url_for('invoice_detail', invoice_number=item.invoice_number) }}"
+                 class="btn btn-outline-secondary">Cancel</a>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+{% endblock %}

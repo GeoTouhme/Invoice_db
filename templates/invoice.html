@@ -77,6 +77,7 @@
             <th class="text-end">Adjustments</th>
             <th class="text-end">Discount</th>
             <th class="text-end">Extended</th>
+            <th class="text-center no-print"></th>
           </tr>
         </thead>
         <tbody>
@@ -94,6 +95,10 @@
             <td class="text-end num text-muted">{{ (item.total_adjustments or 0) | money }}</td>
             <td class="text-end num text-muted">{{ (item.total_discount or 0) | money }}</td>
             <td class="text-end num fw-semibold">{{ item.extended_price | money }}</td>
+            <td class="text-center no-print">
+              <a href="{{ url_for('edit_item', item_id=item.id) }}"
+                 class="btn btn-outline-primary btn-xs py-0 px-1 small">Edit</a>
+            </td>
           </tr>
           {% endfor %}
         </tbody>

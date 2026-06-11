@@ -208,6 +208,7 @@ def index():
 
     products = query(
         f"""SELECT
+                ii.id,
                 ii.product_number,
                 ii.upc_number,
                 ii.product_description,
@@ -262,15 +263,101 @@ def invoice_detail(invoice_number):
         abort(404)
 
     items = query(
-        """SELECT product_number, upc_number, product_description, gl_code,
+        """SELECT id, product_number, upc_number, pack_upc, product_description, gl_code,
                   quantity, unit_cost, unit_of_measure,
-                  total_adjustments, total_discount, extended_price
+                  total_adjustments, total_discount, extended_price, ppc
            FROM invoice_items
            WHERE invoice_number = %s
            ORDER BY gl_code, product_description""",
         (invoice_number,),
     )
     return render_template("invoice.html", inv=inv, items=items)
+
+
+# ── Edit line item ────────────────────────────────────────────────────────────
+
+@app.route("/item/<int:item_id>/edit", methods=["GET", "POST"])
+def edit_item(item_id):
+    item = query(
+        """SELECT id, invoice_number, product_number, upc_number, pack_upc,
+                  product_description, gl_code, quantity, unit_cost,
+                  unit_of_measure, total_adjustments, total_discount,
+                  extended_price, ppc
+           FROM invoice_items WHERE id = %s""",
+        (item_id,), one=True,
+    )
+    if not item:
+        abort(404)
+
+    departments = [r["gl_code"] for r in query(
+        "SELECT DISTINCT gl_code FROM invoice_items ORDER BY gl_code")]
+
+    if request.method == "POST":
+        errors: list[str] = []
+
+        fields = {
+            "product_number": request.form.get("product_number", "").strip(),
+            "upc_number": request.form.get("upc_number", "").strip() or None,
+            "pack_upc": request.form.get("pack_upc", "").strip() or None,
+            "product_description": request.form.get("product_description", "").strip(),
+            "gl_code": request.form.get("gl_code", "").strip() or None,
+            "unit_of_measure": request.form.get("unit_of_measure", "").strip() or None,
+            "quantity": _parse_num(request.form.get("quantity"), "Quantity", errors),
+            "unit_cost": _parse_num(request.form.get("unit_cost"), "Unit Cost", errors),
+            "total_adjustments": _parse_num(request.form.get("total_adjustments"),
+                                              "Adjustments", errors, default=0),
+            "total_discount": _parse_num(request.form.get("total_discount"),
+                                         "Discount", errors, default=0),
+            "extended_price": _parse_num(request.form.get("extended_price"),
+                                           "Extended Price", errors),
+            "ppc": _parse_num(request.form.get("ppc"), "PPC", errors),
+        }
+
+        if not fields["product_description"]:
+            errors.append("Product description is required")
+
+        if errors:
+            for msg in errors:
+                flash(msg, "danger")
+            return render_template("edit_item.html", item=item, departments=departments)
+
+        try:
+            with connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE invoice_items SET
+                            product_number = %s,
+                            upc_number = %s,
+                            pack_upc = %s,
+                            product_description = %s,
+                            gl_code = %s,
+                            quantity = %s,
+                            unit_cost = %s,
+                            unit_of_measure = %s,
+                            total_adjustments = %s,
+                            total_discount = %s,
+                            extended_price = %s,
+                            ppc = %s
+                        WHERE id = %s
+                    """, (
+                        fields["product_number"], fields["upc_number"],
+                        fields["pack_upc"], fields["product_description"],
+                        fields["gl_code"], fields["quantity"],
+                        fields["unit_cost"], fields["unit_of_measure"],
+                        fields["total_adjustments"], fields["total_discount"],
+                        fields["extended_price"], fields["ppc"],
+                        item_id,
+                    ))
+                conn.commit()
+            flash("Item updated successfully", "success")
+        except Exception:
+            log.exception("Item update failed")
+            flash("Database error while updating item", "danger")
+
+        return redirect(url_for("invoice_detail",
+                                invoice_number=item["invoice_number"]))
+
+    return render_template("edit_item.html", item=item, departments=departments)
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────

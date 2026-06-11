@@ -86,6 +86,7 @@
             <th>Vendor</th>
             <th class="text-center">Invoice Date</th>
             <th class="text-center">Invoice #</th>
+            <th class="text-center"></th>
           </tr>
         </thead>
         <tbody>
@@ -109,10 +110,14 @@
                 {{ p.invoice_number }}
               </a>
             </td>
+            <td class="text-center">
+              <a href="{{ url_for('edit_item', item_id=p.id) }}"
+                 class="btn btn-outline-primary btn-xs py-0 px-1 small">Edit</a>
+            </td>
           </tr>
           {% else %}
           <tr>
-            <td colspan="9" class="text-center text-muted py-5">
+            <td colspan="10" class="text-center text-muted py-5">
               <div class="font-serif fs-5 mb-1">No results for these filters</div>
               <div class="small">Try widening the date range, or <a href="{{ url_for('index') }}">start over</a></div>
             </td>

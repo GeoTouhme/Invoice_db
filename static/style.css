@@ -40,17 +40,17 @@ code { color: var(--ink-soft); font-size: .85em; }
 
 /* ── Top bar ── */
 .topbar {
-  background: #28211a;
+  background: #28211a !important;
   border-bottom: 3px solid var(--wine);
 }
 .topbar .navbar-brand {
   font-family: var(--serif);
   font-weight: 600;
   font-size: 1.3rem;
-  color: #f4ecdb;
+  color: #f4ecdb !important;
   letter-spacing: .01em;
 }
-.topbar .navbar-brand:hover { color: #fff; }
+.topbar .navbar-brand:hover { color: #fff !important; }
 .topbar .brand-sub {
   font-family: var(--sans);
   font-size: .62rem;
@@ -62,24 +62,24 @@ code { color: var(--ink-soft); font-size: .85em; }
   margin-top: -2px;
 }
 .topbar .nav-link {
-  color: #b5a992;
+  color: #d8cfc0 !important;
   font-size: .875rem;
   font-weight: 500;
   margin-right: .25rem;
   padding-bottom: .55rem;
   border-bottom: 2px solid transparent;
 }
-.topbar .nav-link:hover { color: #ece3d0; }
+.topbar .nav-link:hover { color: #fff !important; }
 .topbar .nav-link.active {
-  color: #f4ecdb;
+  color: #fff !important;
   border-bottom-color: var(--amber);
 }
 .topbar .btn-signout {
-  color: #b5a992;
+  color: #d8cfc0 !important;
   border: 1px solid #4a4136;
   font-size: .8rem;
 }
-.topbar .btn-signout:hover { color: #ece3d0; border-color: #6f6452; }
+.topbar .btn-signout:hover { color: #fff !important; border-color: #6f6452; }
 
 /* ── Cards ── */
 .card {
